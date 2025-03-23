@@ -1,7 +1,7 @@
 #pragma once
 
 class Log {
-  public:
+public:
     static bool isFramebufferInitialized;
 
     static void log(const char* __restrict format, ...);

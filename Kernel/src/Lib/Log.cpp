@@ -1,7 +1,7 @@
 #include "Lib/Log.hpp"
 #include "Drivers/Framebuffer.hpp"
-#include <stdarg.h>
 #include "Hardware/Port.hpp"
+#include <stdarg.h>
 
 void print(char ch) {
     FramebufferConsole::instance().putChar(ch);
@@ -18,24 +18,24 @@ int itoa(int value, char* str, int base) {
         str[1] = '\0';
         return 1;
     }
-    
+
     int negative = 0;
     if (value < 0 && base == 10) {
         negative = 1;
         value = -value;
     }
-    
+
     int i = 0;
     while (value != 0) {
         int remainder = value % base;
         str[i++] = (remainder < 10) ? remainder + '0' : remainder - 10 + 'a';
         value /= base;
     }
-    
+
     if (negative) {
         str[i++] = '-';
     }
-    
+
     int start = 0;
     int end = i - 1;
     while (start < end) {
@@ -45,12 +45,11 @@ int itoa(int value, char* str, int base) {
         start++;
         end--;
     }
-    
+
     str[i] = '\0';
-    
+
     return i;
 }
-
 
 void printf(const char* __restrict format, va_list parameters, bool serial = false) {
     auto printFunction = serial ? kprint : print;
@@ -121,54 +120,53 @@ void printf(const char* __restrict format, va_list parameters, bool serial = fal
     }
 }
 
-
 void Log::log(const char* __restrict format, ...) {
-  va_list parameters;
-  va_start(parameters, format);
+    va_list parameters;
+    va_start(parameters, format);
 
-  printf("[LOG] ", parameters);
-  printf(format, parameters);
-  print('\n');
+    printf("[LOG] ", parameters);
+    printf(format, parameters);
+    print('\n');
 
-  va_end(parameters);
+    va_end(parameters);
 }
 
 void Log::debug(const char* __restrict format, ...) {
-  va_list parameters;
-  va_start(parameters, format);
+    va_list parameters;
+    va_start(parameters, format);
 
-  printf(format, parameters, true);
-  kprint('\n');
-  
-  va_end(parameters);
+    printf(format, parameters, true);
+    kprint('\n');
+
+    va_end(parameters);
 }
 
 void Log::warn(const char* __restrict format, ...) {
-  va_list parameters;
-  va_start(parameters, format);
+    va_list parameters;
+    va_start(parameters, format);
 
-  printf("[WARN] ", parameters);
-  printf(format, parameters);
+    printf("[WARN] ", parameters);
+    printf(format, parameters);
 
-  va_end(parameters);
+    va_end(parameters);
 }
 
 void Log::error(const char* __restrict format, ...) {
-  va_list parameters;
-  va_start(parameters, format);
+    va_list parameters;
+    va_start(parameters, format);
 
-  printf("[ERROR] ", parameters);
-  printf(format, parameters);
+    printf("[ERROR] ", parameters);
+    printf(format, parameters);
 
-  va_end(parameters);
+    va_end(parameters);
 }
 
 void Log::fatal(const char* __restrict format, ...) {
-  va_list parameters;
-  va_start(parameters, format);
+    va_list parameters;
+    va_start(parameters, format);
 
-  printf("[FATAL] ", parameters);
-  printf(format, parameters);
+    printf("[FATAL] ", parameters);
+    printf(format, parameters);
 
-  va_end(parameters);
+    va_end(parameters);
 }

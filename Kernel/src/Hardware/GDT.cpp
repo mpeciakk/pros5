@@ -16,7 +16,7 @@ void GDT::setGate(u8 num, u32 base, u32 limit, u8 access, u8 gran) {
 
 void GDT::init() {
     ptr.limit = (sizeof(GDTEntry) * 6) - 1;
-    ptr.base = (u32)&entries;
+    ptr.base = (u32) &entries;
 
     setGate(NULL_SEGMENT, 0, 0, 0, 0);
     setGate(KERNEL_CODE, 0, 0xFFFFFFFF, 0x9A, 0xCF);
@@ -26,16 +26,16 @@ void GDT::init() {
     setGate(TSS, 0, 0, 0, 0);
 
     asm volatile("lgdt (%0)" : : "r"(&ptr));
-    
-    asm volatile(
-        "ljmp $0x08, $1f\n"
-        "1:\n"
-        "mov $0x10, %%ax\n"
-        "mov %%ax, %%ds\n"
-        "mov %%ax, %%es\n"
-        "mov %%ax, %%fs\n"
-        "mov %%ax, %%gs\n"
-        "mov %%ax, %%ss\n"
-        : : : "ax", "memory"
-    );
+
+    asm volatile("ljmp $0x08, $1f\n"
+                 "1:\n"
+                 "mov $0x10, %%ax\n"
+                 "mov %%ax, %%ds\n"
+                 "mov %%ax, %%es\n"
+                 "mov %%ax, %%fs\n"
+                 "mov %%ax, %%gs\n"
+                 "mov %%ax, %%ss\n"
+                 :
+                 :
+                 : "ax", "memory");
 }

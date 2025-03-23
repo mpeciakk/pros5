@@ -10,19 +10,23 @@ void Framebuffer::init(u32* addr, u32 w, u32 h, u32 p, u32 bpp) {
 }
 
 void Framebuffer::putPixel(u32 x, u32 y, u32 color) {
-    if (x >= width || y >= height) return;
-    
+    if (x >= width || y >= height)
+        return;
+
     u32 offset = y * (pitch / 4) + x;
     buffer[offset] = color;
 }
 
 void Framebuffer::fillRect(u32 x, u32 y, u32 w, u32 h, u32 color) {
-    if (x >= width || y >= height) return;
-    if (x + w > width) w = width - x;
-    if (y + h > height) h = height - y;
-    
+    if (x >= width || y >= height)
+        return;
+    if (x + w > width)
+        w = width - x;
+    if (y + h > height)
+        h = height - y;
+
     u32 offset = y * (pitch / 4) + x;
-    
+
     for (u32 i = 0; i < h; i++) {
         for (u32 j = 0; j < w; j++) {
             buffer[offset + j] = color;

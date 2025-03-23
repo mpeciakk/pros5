@@ -22,7 +22,7 @@ public:
 private:
     static GDTEntry entries[6];
     static GDTPtr ptr;
-    
+
     static constexpr u8 NULL_SEGMENT = 0;
     static constexpr u8 KERNEL_CODE = 1;
     static constexpr u8 KERNEL_DATA = 2;
@@ -31,4 +31,4 @@ private:
     static constexpr u8 TSS = 5;
 
     void setGate(u8 num, u32 base, u32 limit, u8 access, u8 gran);
-}; 
+};
