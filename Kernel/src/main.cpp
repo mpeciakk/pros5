@@ -3,14 +3,17 @@
 #include "Lib/Log.hpp"
 #include "Multiboot/multiboot.h"
 #include "Papiez.hpp"
-
+#include "Hardware/IDT.hpp"
 void stage1(u32 addr) {
     Log::debug("[Stage 1] Initializing");
 
     GDT gdt;
     gdt.init();
-
     Log::debug("GDT initialized");
+
+    InterruptManager::instance().init();
+    InterruptManager::instance().enable();
+    Log::debug("InterruptManager initialized and enabled");
 
     Log::debug("[Stage 1] Initialized\n");
 }
@@ -66,11 +69,11 @@ void stage2(u32 addr) {
             Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
             FramebufferConsole::instance().init();
 
-            for (int i = 0; i < PAPIEZ_WIDTH; i++) {
-                for (int j = 0; j < PAPIEZ_HEIGHT; j++) {
-                    Framebuffer::instance().putPixel(i + 150, j + 150, PAPIEZ[j * PAPIEZ_WIDTH + i]);
-                }
-            }
+            // for (int i = 0; i < PAPIEZ_WIDTH; i++) {
+            //     for (int j = 0; j < PAPIEZ_HEIGHT; j++) {
+            //         Framebuffer::instance().putPixel(i + 150, j + 150, PAPIEZ[j * PAPIEZ_WIDTH + i]);
+            //     }
+            // }
 
             break;
         }
@@ -104,6 +107,8 @@ extern "C" [[noreturn]] void kmain(unsigned long magic, unsigned long addr) {
 
     stage1(addr);
     stage2(addr);
+
+    Log::debug("Kernel initialized");
 
     while (true) {
         __asm__ volatile("hlt");

@@ -10,7 +10,7 @@ struct GDTEntry {
     u8 baseHigh;
 } __attribute__((packed));
 
-struct GDTPtr {
+struct GDTPointer {
     u16 limit;
     u32 base;
 } __attribute__((packed));
@@ -21,7 +21,7 @@ public:
 
 private:
     static GDTEntry entries[6];
-    static GDTPtr ptr;
+    static GDTPointer ptr;
 
     static constexpr u8 NULL_SEGMENT = 0;
     static constexpr u8 KERNEL_CODE = 1;

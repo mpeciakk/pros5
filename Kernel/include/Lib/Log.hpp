@@ -1,5 +1,9 @@
 #pragma once
 
+void print(char ch);
+void kprint(char ch);
+int itoa(int value, char* str, int base);
+
 class Log {
 public:
     static bool isFramebufferInitialized;
