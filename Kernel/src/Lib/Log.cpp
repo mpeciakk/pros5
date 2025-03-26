@@ -51,6 +51,35 @@ int itoa(int value, char* str, int base) {
     return i;
 }
 
+int utoa(unsigned int value, char* str, int base) {
+    if (value == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return 1;
+    }
+
+    int i = 0;
+    while (value != 0) {
+        int remainder = value % base;
+        str[i++] = (remainder < 10) ? remainder + '0' : remainder - 10 + 'a';
+        value /= base;
+    }
+
+    int start = 0;
+    int end = i - 1;
+    while (start < end) {
+        char temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        start++;
+        end--;
+    }
+
+    str[i] = '\0';
+
+    return i;
+}
+
 void printf(const char* __restrict format, va_list parameters, bool serial = false) {
     auto printFunction = serial ? kprint : print;
 
@@ -88,11 +117,19 @@ void printf(const char* __restrict format, va_list parameters, bool serial = fal
             for (int j = 0; j < i; j++) {
                 printFunction(buffer[j]);
             }
+        } else if (*format == 'u') {
+            format++;
+            unsigned int num = va_arg(parameters, unsigned int);
+            char buffer[32];
+            int i = utoa(num, buffer, 10);
+            for (int j = 0; j < i; j++) {
+                printFunction(buffer[j]);
+            }
         } else if (*format == 'x') {
             format++;
             int num = va_arg(parameters, int);
             char buffer[32];
-            int i = itoa(num, buffer, 16);
+            int i = utoa(num, buffer, 16);
             printFunction('0');
             printFunction('x');
             for (int j = 0; j < i; j++) {
@@ -169,4 +206,28 @@ void Log::fatal(const char* __restrict format, ...) {
     printf(format, parameters);
 
     va_end(parameters);
+}
+
+void [[noreturn]] panic(const char* __restrict format, ...) {
+    va_list parameters;
+    va_start(parameters, format);
+
+    printf("--------------------------------\n", parameters);
+    printf("KERNEL BRUH MOMENT\n", parameters);
+    printf(format, parameters);
+    printf("\n", parameters);
+    printf("--------------------------------\n", parameters);
+
+    printf("--------------------------------\n", parameters, true);
+    printf("KERNEL BRUH MOMENT\n", parameters, true);
+    printf(format, parameters, true);
+    printf("\n", parameters, true);
+    printf("--------------------------------\n", parameters, true);
+
+    va_end(parameters);
+
+    while (true) {
+        __asm__ volatile("cli");
+        __asm__ volatile("hlt");
+    }
 }

@@ -3,6 +3,7 @@
 void print(char ch);
 void kprint(char ch);
 int itoa(int value, char* str, int base);
+void panic(const char* __restrict format, ...);
 
 class Log {
 public:

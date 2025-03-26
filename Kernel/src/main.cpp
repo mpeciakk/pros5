@@ -4,6 +4,7 @@
 #include "Multiboot/multiboot.h"
 #include "Papiez.hpp"
 #include "Hardware/IDT.hpp"
+
 void stage1(u32 addr) {
     Log::debug("[Stage 1] Initializing");
 
@@ -21,10 +22,7 @@ void stage1(u32 addr) {
 void stage2(u32 addr) {
     Log::debug("[Stage 2] Initializing");
 
-    struct multiboot_tag* tag;
-    unsigned size = *(unsigned*) addr;
-    Log::debug("Total MBI size: %x", size);
-    for (tag = (struct multiboot_tag*) (addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END;
+    for (auto* tag = (struct multiboot_tag*) (addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END;
          tag = (struct multiboot_tag*) ((multiboot_uint8_t*) tag + ((tag->size + 7) & ~7))) {
 
         Log::debug("Tag type: %x", tag->type);
@@ -33,7 +31,7 @@ void stage2(u32 addr) {
             struct multiboot_tag_framebuffer* tagfb = (struct multiboot_tag_framebuffer*) tag;
 
             Log::debug("Framebuffer info:");
-            Log::debug("Address: %d", (u32) tagfb->common.framebuffer_addr);
+            Log::debug("Address: %x", (u32) tagfb->common.framebuffer_addr);
             Log::debug("Width: %x", tagfb->common.framebuffer_width);
             Log::debug("Height: %x", tagfb->common.framebuffer_height);
             Log::debug("Pitch: %x", tagfb->common.framebuffer_pitch);
@@ -61,13 +59,14 @@ void stage2(u32 addr) {
                 Log::debug("Not 32-bit color");
                 break;
             }
+            
+            // Framebuffer is inaccessible until we manually map it to the higher half using MemoryManager
+            // Framebuffer::instance().init((u32*) (tagfb->common.framebuffer_addr), tagfb->common.framebuffer_width,
+                                        //  tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
+                                        //  tagfb->common.framebuffer_bpp);
 
-            Framebuffer::instance().init((u32*) tagfb->common.framebuffer_addr, tagfb->common.framebuffer_width,
-                                         tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
-                                         tagfb->common.framebuffer_bpp);
-
-            Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
-            FramebufferConsole::instance().init();
+            // Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
+            // FramebufferConsole::instance().init();
 
             // for (int i = 0; i < PAPIEZ_WIDTH; i++) {
             //     for (int j = 0; j < PAPIEZ_HEIGHT; j++) {
@@ -105,8 +104,8 @@ extern "C" [[noreturn]] void kmain(unsigned long magic, unsigned long addr) {
 
     Log::debug("[Stage 0] Initialized\n");
 
-    stage1(addr);
-    stage2(addr);
+    stage1(addr + 0xC0000000);
+    stage2(addr + 0xC0000000);
 
     Log::debug("Kernel initialized");
 

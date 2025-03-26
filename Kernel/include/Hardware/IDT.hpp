@@ -6,7 +6,7 @@
 struct Registers {
     u32 gs, fs, es, ds;
     u32 edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    u32 interrupt, errorCode;
+    u32 interrupt, error;
     u32 eip, cs, eflags, useresp, ss;
 };
 

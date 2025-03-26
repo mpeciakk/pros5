@@ -16,6 +16,15 @@ extern "C" void handleInterrupt(Registers* regs) {
         Log::debug("Interrupt: %x", regs->interrupt);
     }
 
+    if (regs->interrupt < 0x20) {
+        panic("CPU Exception %d\nEAX: %x, EBX: %x, ECX: %x, EDX: %x\nESP: %x, EBP: %x, ESI: %x, EDI: %x\nEIP: %x, CS: %x, DS: %x, SS: %x\nERROR CODE: %x",
+              regs->interrupt,
+              regs->eax, regs->ebx, regs->ecx, regs->edx,
+              regs->esp, regs->ebp, regs->esi, regs->edi,
+              regs->eip, regs->cs, regs->ds, regs->ss,
+              regs->error);
+    }
+
     outb(0x20, 0x20);
     
     if (regs->interrupt >= 40) {

@@ -1,6 +1,8 @@
 MULTIBOOT_MAGIC             equ 0xe85250d6
 MULTIBOOT_ARCHITECTURE      equ 0x00000000
 MULTIBOOT_HEADER_LENGTH     equ 0x10
+KERNEL_VIRTUAL_BASE  equ 0xC0000000
+KERNEL_PAGE_NUMBER   equ (KERNEL_VIRTUAL_BASE >> 22)
 
 section .multiboot_header
 header_start:
@@ -41,10 +43,43 @@ stack_bottom:
     resb 16384 ; 16KB
 stack_top:
 
+section .data
+align 0x1000
+boot_page_directory:
+    ; identity map first page (4MB)
+    dd 0x00000083
+
+    ; zero pages before kernel
+    times (KERNEL_PAGE_NUMBER - 1) dd 0
+
+    ; identity map kernel page (4MB)
+    dd 0x00000083
+
+    ; pages after kernel
+    times (1024 - KERNEL_PAGE_NUMBER - 1) dd 0
+
 section .text
 global _loader
 extern kmain
 _loader:
+    ; load our boot page directory
+    mov ecx, (boot_page_directory - KERNEL_VIRTUAL_BASE)
+    mov cr3, ecx
+
+    ; enable 4 mb pages
+    mov ecx, cr4
+    or ecx, 0x00000010
+    mov cr4, ecx
+
+    ; enable paging
+    mov ecx, cr0
+    or ecx, 0x80000001
+    mov cr0, ecx
+
+    lea ecx, [start]
+    jmp ecx
+
+start:
     ; Set up the stack
     mov esp, stack_top
     
@@ -57,6 +92,7 @@ _loader:
 
     ; Halt the CPU
     cli
+
 loopb:
     hlt
     jmp loopb
