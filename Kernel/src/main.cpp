@@ -19,12 +19,15 @@ void stage1(u32 addr) {
 
     MemoryManager::instance().init(addr);
     Log::debug("[MM] initialized");
-    MemoryManager::instance().getPage(3);
-    MemoryManager::instance().getPage(5);
-    MemoryManager::instance().getPage(1);
-    MemoryManager::instance().getPage(2);
-    MemoryManager::instance().printBuddyVisualization();
-    MemoryManager::instance().printAllocationTable();
+    // u32 addr1 = MemoryManager::instance().allocBlock(3);
+    // u32 addr2 = MemoryManager::instance().allocBlock(5);
+    // u32 addr3 = MemoryManager::instance().allocBlock(1);
+    // u32 addr4 = MemoryManager::instance().allocBlock(2);
+    // MemoryManager::instance().printBuddyVisualization();
+    // MemoryManager::instance().printAllocationTable();
+
+    // Log::debug("Allocated blocks: %x, %x, %x, %x", addr1, addr2, addr3, addr4);
+
     Log::debug("[Stage 1] Initialized\n");
 }
 

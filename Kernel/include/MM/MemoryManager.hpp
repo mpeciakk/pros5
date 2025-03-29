@@ -14,7 +14,7 @@ public:
     MemoryManager() = default;
 
     void init(u32 addr);
-    void getPage(u32 count);
+    u32 allocBlock(u32 count);
     void printAllocationTable();
     void printBuddyVisualization();
 
@@ -36,4 +36,7 @@ private:
     void initBuddyAllocator(u32 addr);
     u32 indexToLevel(u32 sourceLevel, u32 targetLevel, u32 index);
     u32 getNearestFreeblock(u32 level);
+
+    void allocBlocks(u32 level, u32 firstBlock, u32 count);
+    void markRegionAllocated(u32 addr, u32 length);
 };

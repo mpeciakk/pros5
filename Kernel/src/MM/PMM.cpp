@@ -16,53 +16,61 @@ void MemoryManager::initPMM(u32 addr) {
                 totalMemory = meminfo->mem_upper;
                 break;
             }
-            case MULTIBOOT_TAG_TYPE_MMAP: {
-                struct multiboot_tag_mmap* mmap = (struct multiboot_tag_mmap*)tag;
-                for (multiboot_memory_map_t* entry = mmap->entries;
-                     (multiboot_uint8_t*)entry < (multiboot_uint8_t*)tag + tag->size;
-                     entry = (multiboot_memory_map_t*)((multiboot_uint8_t*)entry + mmap->entry_size)) {
-                    
-                    // We are in 32-bit mode so we can assume that the address and length are in the lower 32 bits
-                    u32 addr = entry->addr & 0xffffffff;
-                    u32 length = entry->len & 0xffffffff;
-                    u32 type = entry->type;
-
-                    const char* type_str;
-                    switch (type) {
-                        case MULTIBOOT_MEMORY_AVAILABLE:
-                            type_str = "AVAILABLE";
-                            break;
-                        case MULTIBOOT_MEMORY_RESERVED:
-                            type_str = "RESERVED";
-                            break;
-                        case MULTIBOOT_MEMORY_ACPI_RECLAIMABLE:
-                            type_str = "ACPI RECLAIMABLE";
-                            break;
-                        case MULTIBOOT_MEMORY_NVS:
-                            type_str = "NVS";
-                            break;
-                        case MULTIBOOT_MEMORY_BADRAM:
-                            type_str = "BADRAM";
-                            break;
-                        default:
-                            type_str = "UNKNOWN";
-                            break;
-                    }
-
-                    Log::debug("[MM] Memory region: addr = %x, length = %x, type = %x (%s)",
-                            addr,
-                            length,
-                            type,
-                            type_str);
-                }
-                break;
-            }
         }
-
         tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
     }
 
     initBuddyAllocator(addr);
+
+    tag = (struct multiboot_tag*)(addr + 8);
+    while (tag->type != MULTIBOOT_TAG_TYPE_END) {
+        if (tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
+            struct multiboot_tag_mmap* mmap = (struct multiboot_tag_mmap*)tag;
+            for (multiboot_memory_map_t* entry = mmap->entries;
+                 (multiboot_uint8_t*)entry < (multiboot_uint8_t*)tag + tag->size;
+                 entry = (multiboot_memory_map_t*)((multiboot_uint8_t*)entry + mmap->entry_size)) {
+                
+                // We are in 32-bit mode so we can assume that the address and length are in the lower 32 bits
+                u32 region_addr = entry->addr & 0xffffffff;
+                u32 region_len = entry->len & 0xffffffff;
+                u32 type = entry->type;
+
+                const char* type_str;
+                switch (type) {
+                    case MULTIBOOT_MEMORY_AVAILABLE:
+                        type_str = "AVAILABLE";
+                        break;
+                    case MULTIBOOT_MEMORY_RESERVED:
+                        type_str = "RESERVED";
+                        markRegionAllocated(region_addr, region_len);
+                        break;
+                    case MULTIBOOT_MEMORY_ACPI_RECLAIMABLE:
+                        type_str = "ACPI RECLAIMABLE";
+                        markRegionAllocated(region_addr, region_len);
+                        break;
+                    case MULTIBOOT_MEMORY_NVS:
+                        type_str = "NVS";
+                        markRegionAllocated(region_addr, region_len);
+                        break;
+                    case MULTIBOOT_MEMORY_BADRAM:
+                        type_str = "BADRAM";
+                        markRegionAllocated(region_addr, region_len);
+                        break;
+                    default:
+                        type_str = "UNKNOWN";
+                        markRegionAllocated(region_addr, region_len);
+                        break;
+                }
+
+                Log::debug("[MM] Memory region: addr = %x, length = %x, type = %x (%s)",
+                        region_addr,
+                        region_len,
+                        type,
+                        type_str);
+            }
+        }
+        tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
+    }
 }
 
 void MemoryManager::initBuddyAllocator(u32 addr) {
@@ -102,7 +110,7 @@ u32 MemoryManager::indexToLevel(u32 sourceLevel, u32 targetLevel, u32 index) {
     }
 }
 
-void MemoryManager::getPage(u32 count) {
+u32 MemoryManager::allocBlock(u32 count) {
     u32 bytes = count * MIN_BLOCK_SIZE;
     
     u32 k = bytes;
@@ -124,7 +132,7 @@ void MemoryManager::getPage(u32 count) {
     u32 m = getNearestFreeblock(level);
     if (m == 0xFFFFFFFF) {
         Log::debug("[MM] No free blocks found at level %u for %u pages", level, count);
-        return;
+        return 0xFFFFFFFF;
     }
     
     bitmaps[level].setBit(m);
@@ -145,6 +153,35 @@ void MemoryManager::getPage(u32 count) {
     }
 
     Log::debug("[MM] Allocated %u pages (%u bytes) at level %u, block index %u", count, blockSize, level, m);
+
+    return m * (MIN_BLOCK_SIZE << level);
+}
+
+void MemoryManager::allocBlocks(u32 level, u32 firstBlock, u32 count) {
+    for (u32 i = 0; i < count; i++) {
+        u32 m = firstBlock + i;
+        bitmaps[level].setBit(m);
+
+        for (u32 i = 1; i < NUM_LEVELS; i++) {
+            u32 parentIndex = indexToLevel(level, i, m);
+            bitmaps[i].setBit(parentIndex);
+        }
+
+        for (u32 i = level - 1; i < NUM_LEVELS; i--) {
+            u32 childIndex = indexToLevel(level, i, m);
+        
+            for (u32 j = 0; j < i * 2; j++) {
+                bitmaps[i].setBit(childIndex + j);
+            }
+        }
+    }
+}
+
+void MemoryManager::markRegionAllocated(u32 addr, u32 length) {
+    u32 startBlock = addr / MIN_BLOCK_SIZE;
+    u32 numBlocks = (length + MIN_BLOCK_SIZE - 1) / MIN_BLOCK_SIZE;
+
+    allocBlocks(0, startBlock, numBlocks);
 }
 
 void MemoryManager::printAllocationTable() {
