@@ -1,8 +1,8 @@
 MULTIBOOT_MAGIC             equ 0xe85250d6
 MULTIBOOT_ARCHITECTURE      equ 0x00000000
 MULTIBOOT_HEADER_LENGTH     equ 0x10
-KERNEL_VIRTUAL_BASE  equ 0xC0000000
-KERNEL_PAGE_NUMBER   equ (KERNEL_VIRTUAL_BASE >> 22)
+KERNEL_VIRTUAL_BASE         equ 0xC0000000
+KERNEL_PAGE_NUMBER          equ (KERNEL_VIRTUAL_BASE >> 22)
 
 section .multiboot_header
 header_start:
@@ -11,10 +11,18 @@ header_start:
     dd header_end - header_start
     dd -(MULTIBOOT_MAGIC + MULTIBOOT_ARCHITECTURE + (header_end - header_start))
 
+    ; Information request tag
+    align 8
+    dw 1                ; information request tag type
+    dw 1                ; flags (optional)
+    dd 16               ; size (2 + 2 + 4 + 8)
+    dd 4                ; request basic meminfo
+    dd 6                ; request memory map
+
     ; Framebuffer tag
     align 8
     dw 5                ; framebuffer tag type
-    dw 0                ; flags (optional)
+    dw 0                ; flags
     dd 20               ; size
     dd 1024             ; width
     dd 768              ; height
