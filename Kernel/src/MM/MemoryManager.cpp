@@ -3,4 +3,5 @@
 
 void MemoryManager::init(u32 addr) {
     initPMM(addr);
+    initVMM();
 }

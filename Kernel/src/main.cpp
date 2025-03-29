@@ -28,6 +28,9 @@ void stage1(u32 addr) {
 
     // Log::debug("Allocated blocks: %x, %x, %x, %x", addr1, addr2, addr3, addr4);
 
+    MemoryManager::instance().mapPage(5 * 1024 * 1024, 0xC0000000 + 5 * 1024 * 1024);
+    // MemoryManager::instance().mapPage(5 * 1024 * 1024 + 1024, 0xC0000000 + 5 * 1024 * 1024 + 1024);
+    // MemoryManager::instance().allocatePage(MemoryManager::instance().getPageForAddress(0xCCCA0000, true, true, false));
     Log::debug("[Stage 1] Initialized\n");
 }
 
@@ -145,7 +148,7 @@ extern "C" [[noreturn]] void kmain(unsigned long magic, unsigned long addr) {
     Log::debug("[Stage 0] Initialized\n");
 
     stage1(addr + 0xC0000000);
-    stage2(addr + 0xC0000000);
+    // stage2(addr + 0xC0000000);
 
     Log::debug("Kernel initialized");
 

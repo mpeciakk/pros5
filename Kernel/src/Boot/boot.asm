@@ -53,6 +53,7 @@ stack_top:
 
 section .data
 align 0x1000
+global boot_page_directory
 boot_page_directory:
     ; identity map first page (4MB)
     dd 0x00000083

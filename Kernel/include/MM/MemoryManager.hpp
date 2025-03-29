@@ -1,8 +1,62 @@
 #pragma once
 
+#include "Lib/Bitmap.hpp"
 #include "Lib/Types.hpp"
 #include "Multiboot/multiboot.h"
-#include "Lib/Bitmap.hpp"
+
+#define PAGE_SIZE 4096
+
+#define PAGE_DIRECTORY_INDEX(x) ((((u32) x) >> 22) & 0x3ff)
+#define PAGE_TABLE_INDEX(x) ((((u32) x) >> 12) & 0x3ff)
+#define PAGE_GET_PHYSICAL_ADDRESS(x) ((*x) & ~0xFFF)
+
+#define GET_FRAME_ADDRESS(x) ((x & 0xFFFFF000) >> 12)
+
+#define phys2virt(x) ((u32) x + 0xC0000000)
+#define virt2phys(x) ((u32) x - 0xC0000000)
+
+// #define KERNEL_HEAP_START (0xC0000000 + 4 * 1024 * 1024)
+// #define KERNEL_HEAP_SIZE 16 * 1024
+
+static inline void invlpg(void* addr) {
+    asm volatile("invlpg (%0)" ::"r"(addr) : "memory");
+}
+
+struct PageDirectoryEntry {
+    u32 present : 1;     
+    u32 readWrite : 1;   
+    u32 isUser : 1;       
+    u32 writeThrough : 1; 
+    u32 canCache : 1;     
+    u32 accessed : 1;     
+    u32 reserved : 1;     
+    u32 pageSize : 1;     
+    u32 ignored : 1;
+    u32 unused : 3; 
+    u32 frame : 20; 
+} __attribute__((packed));
+
+struct PageTableEntry {
+    u32 present : 1;      
+    u32 readWrite : 1;    
+    u32 isUser : 1;       
+    u32 writeThrough : 1; 
+    u32 canCache : 1;     
+    u32 accessed : 1;     
+    u32 dirty : 1;        
+    u32 reserved : 1;
+    u32 global : 1; 
+    u32 unused : 3; 
+    u32 frame : 20; 
+} __attribute__((packed));
+
+struct PageTable {
+    PageTableEntry entries[1024];
+} __attribute__((packed));
+
+struct PageDirectory {
+    PageDirectoryEntry entries[1024];
+} __attribute__((packed));
 
 class MemoryManager {
 public:
@@ -17,6 +71,7 @@ public:
     u32 allocBlock(u32 count);
     void printAllocationTable();
     void printBuddyVisualization();
+    void mapPage(u32 phys, u32 virt);
 
 private:
     static constexpr u32 MIN_BLOCK_SIZE = 4096;
@@ -26,8 +81,11 @@ private:
     static constexpr u32 MAX_BLOCKS_PER_LEVEL = (MAX_MEMORY_MB * 1024 * 1024) / MIN_BLOCK_SIZE;
     static constexpr u32 MAX_BITMAP_SIZE = (MAX_BLOCKS_PER_LEVEL + 7) / 8;
 
+    PageDirectory* currentPageDirectory;
+
     u32 totalMemory;
     void initPMM(u32 addr);
+    void initVMM();
 
     // Buddy allocator
     u8 bitmapAddress[NUM_LEVELS][MAX_BITMAP_SIZE];

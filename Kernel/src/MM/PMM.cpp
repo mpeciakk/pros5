@@ -22,6 +22,8 @@ void MemoryManager::initPMM(u32 addr) {
 
     initBuddyAllocator(addr);
 
+    markRegionAllocated(0x00000000, 0x110000);
+
     tag = (struct multiboot_tag*)(addr + 8);
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         if (tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
