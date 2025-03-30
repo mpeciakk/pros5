@@ -1,37 +1,33 @@
-#include "MM/MemoryManager.hpp"
-#include "Lib/Log.hpp"
 #include "Lib/Bitmap.hpp"
+#include "Lib/Log.hpp"
+#include "Lib/String.hpp"
+#include "MM/MemoryManager.hpp"
 
 void MemoryManager::initPMM(u32 addr) {
-    multiboot_tag* tag = (struct multiboot_tag*)(addr + 8);
-    
+    multiboot_tag* tag = (struct multiboot_tag*) (addr + 8);
+
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         switch (tag->type) {
             case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO: {
-                struct multiboot_tag_basic_meminfo* meminfo = (struct multiboot_tag_basic_meminfo*)tag;
-                Log::debug("[MM] mem_lower = %uKB, mem_upper = %uKB",
-                        meminfo->mem_lower,
-                        meminfo->mem_upper);
+                struct multiboot_tag_basic_meminfo* meminfo = (struct multiboot_tag_basic_meminfo*) tag;
+                Log::debug("[MM] mem_lower = %uKB, mem_upper = %uKB", meminfo->mem_lower, meminfo->mem_upper);
 
                 totalMemory = meminfo->mem_upper;
                 break;
             }
         }
-        tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
+        tag = (struct multiboot_tag*) ((multiboot_uint8_t*) tag + ((tag->size + 7) & ~7));
     }
 
     initBuddyAllocator(addr);
 
-    markRegionAllocated(0x00000000, 0x110000);
-
-    tag = (struct multiboot_tag*)(addr + 8);
+    tag = (struct multiboot_tag*) (addr + 8);
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         if (tag->type == MULTIBOOT_TAG_TYPE_MMAP) {
-            struct multiboot_tag_mmap* mmap = (struct multiboot_tag_mmap*)tag;
-            for (multiboot_memory_map_t* entry = mmap->entries;
-                 (multiboot_uint8_t*)entry < (multiboot_uint8_t*)tag + tag->size;
-                 entry = (multiboot_memory_map_t*)((multiboot_uint8_t*)entry + mmap->entry_size)) {
-                
+            struct multiboot_tag_mmap* mmap = (struct multiboot_tag_mmap*) tag;
+            for (multiboot_memory_map_t* entry = mmap->entries; (multiboot_uint8_t*) entry < (multiboot_uint8_t*) tag + tag->size;
+                 entry = (multiboot_memory_map_t*) ((multiboot_uint8_t*) entry + mmap->entry_size)) {
+
                 // We are in 32-bit mode so we can assume that the address and length are in the lower 32 bits
                 u32 region_addr = entry->addr & 0xffffffff;
                 u32 region_len = entry->len & 0xffffffff;
@@ -64,14 +60,10 @@ void MemoryManager::initPMM(u32 addr) {
                         break;
                 }
 
-                Log::debug("[MM] Memory region: addr = %x, length = %x, type = %x (%s)",
-                        region_addr,
-                        region_len,
-                        type,
-                        type_str);
+                Log::debug("[MM] Memory region: addr = %x, length = %x, type = %x (%s)", region_addr, region_len, type, type_str);
             }
         }
-        tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
+        tag = (struct multiboot_tag*) ((multiboot_uint8_t*) tag + ((tag->size + 7) & ~7));
     }
 }
 
@@ -85,20 +77,20 @@ void MemoryManager::initBuddyAllocator(u32 addr) {
         bitmaps[level].bitmap = bitmapAddress[level];
         bitmaps[level].clear();
 
-        Log::debug("[MM Buddy Allocator] Level %u: block_size=%uKB, num_blocks=%u, bitmap_size=%u bytes",
-                  level, blockSize/1024, numBlocks, bitmaps[level].size);
+        Log::debug("[MM Buddy Allocator] Level %u: block_size=%uKB, num_blocks=%u, bitmap_size=%u bytes", level, blockSize / 1024,
+                   numBlocks, bitmaps[level].size);
     }
 }
 
 u32 MemoryManager::getNearestFreeblock(u32 level) {
     u32 numBlocks = bitmaps[level].size * 8;
-    
+
     for (u32 i = 0; i < numBlocks; i++) {
         if (!bitmaps[level].getBit(i)) {
             return i;
         }
     }
-    
+
     return 0xFFFFFFFF;
 }
 
@@ -114,7 +106,7 @@ u32 MemoryManager::indexToLevel(u32 sourceLevel, u32 targetLevel, u32 index) {
 
 u32 MemoryManager::allocBlock(u32 count) {
     u32 bytes = count * MIN_BLOCK_SIZE;
-    
+
     u32 k = bytes;
     k--;
     k |= k >> 1;
@@ -136,7 +128,7 @@ u32 MemoryManager::allocBlock(u32 count) {
         Log::debug("[MM] No free blocks found at level %u for %u pages", level, count);
         return 0xFFFFFFFF;
     }
-    
+
     bitmaps[level].setBit(m);
 
     // Mark all parent blocks as allocated (up the tree)
@@ -148,7 +140,7 @@ u32 MemoryManager::allocBlock(u32 count) {
     // Mark all child blocks as allocated (down the tree)
     for (u32 i = level - 1; i < NUM_LEVELS; i--) {
         u32 childIndex = indexToLevel(level, i, m);
-        
+
         for (u32 j = 0; j < (4 * count + (i + 1) * 4 - 1) / ((i + 1) * 4); j++) {
             bitmaps[i].setBit(childIndex + j);
         }
@@ -171,7 +163,7 @@ void MemoryManager::allocBlocks(u32 level, u32 firstBlock, u32 count) {
 
         for (u32 i = level - 1; i < NUM_LEVELS; i--) {
             u32 childIndex = indexToLevel(level, i, m);
-        
+
             for (u32 j = 0; j < i * 2; j++) {
                 bitmaps[i].setBit(childIndex + j);
             }
@@ -186,84 +178,51 @@ void MemoryManager::markRegionAllocated(u32 addr, u32 length) {
     allocBlocks(0, startBlock, numBlocks);
 }
 
-void MemoryManager::printAllocationTable() {
-    Log::debug("\n[MM Buddy Allocator] Memory Allocation Table:");
-    Log::debug("----------------------------------------");
-    Log::debug("Level | Block Size | Total Blocks | Used | Free");
-    Log::debug("----------------------------------------");
-
-    for (u32 level = 0; level < NUM_LEVELS; level++) {
-        u32 blockSize = MIN_BLOCK_SIZE << level;
-        u32 totalBlocks = bitmaps[level].size * 8;
-        u32 usedBlocks = 0;
-        
-        for (u32 i = 0; i < totalBlocks; i++) {
-            if (bitmaps[level].getBit(i)) {
-                usedBlocks++;
-            }
-        }
-        
-        u32 freeBlocks = totalBlocks - usedBlocks;
-        
-        Log::debug("%u | %uKB | %u | %u | %u",
-                  level,
-                  blockSize / 1024,
-                  totalBlocks,
-                  usedBlocks,
-                  freeBlocks);
-    }
-    
-    Log::debug("----------------------------------------\n");
-}
-
 void MemoryManager::printBuddyVisualization() {
     Log::debug("\n[MM Buddy Allocator] Memory Visualization:");
 
-    kprint('\n');
+    Log::kprint('\n');
     for (u32 s = 0; s < totalMemory + 8; s++) {
-        kprint('-');
+        Log::kprint('-');
     }
-    kprint('\n');
-    
+    Log::kprint('\n');
+
     for (u32 level = 0; level < NUM_LEVELS; level++) {
         u32 blockSize = MIN_BLOCK_SIZE << level;
         u32 totalBlocks = (totalMemory * 1024) / blockSize;
-        
+
         if (blockSize < 10240) {
-            kprint(' ');
+            Log::kprint(' ');
         }
         char buf[16];
-        int len = itoa(blockSize / 1024, buf, 10);
+        int len = itos(blockSize / 1024, buf, 10);
         for (u32 i = 0; i < len; i++) {
-            kprint(buf[i]);
+            Log::kprint(buf[i]);
         }
-        kprint('K');
-        kprint('B');
-        kprint(' ');
-        kprint('|');
-        
+        Log::kprints("KB |");
+
         u32 spacing = (1 << (level + 1)) - 1;
-        
+
         for (u32 i = 0; i < totalBlocks; i++) {
             for (u32 s = 0; s < spacing; s++) {
-                kprint(' ');
+                Log::kprint(' ');
             }
-            
-            kprint(bitmaps[level].getBit(i) ? '#' : '.');
-            
+
+            Log::kprint(bitmaps[level].getBit(i) ? '#' : '.');
+
             for (u32 s = 0; s < spacing; s++) {
-                kprint(' ');
+                Log::kprint(' ');
             }
-            
-            kprint('|');
+
+            Log::kprint('|');
         }
-        
-        kprint('\n');
+
+        Log::kprint('\n');
         for (u32 s = 0; s < totalMemory + 6; s++) {
-            kprint('-');
+            Log::kprint('-');
         }
-        kprint('\n');
+        Log::kprint('\n');
     }
-    
+
     Log::debug("# = Allocated, . = Free\n");
 }

@@ -1,10 +1,10 @@
 #include "Drivers/Framebuffer.hpp"
 #include "Hardware/GDT.hpp"
+#include "Hardware/IDT.hpp"
 #include "Lib/Log.hpp"
+#include "MM/MemoryManager.hpp"
 #include "Multiboot/multiboot.h"
 #include "Papiez.hpp"
-#include "Hardware/IDT.hpp"
-#include "MM/MemoryManager.hpp"
 
 void stage1(u32 addr) {
     Log::debug("[Stage 1] Initializing");
@@ -19,58 +19,41 @@ void stage1(u32 addr) {
 
     MemoryManager::instance().init(addr);
     Log::debug("[MM] initialized");
-    // u32 addr1 = MemoryManager::instance().allocBlock(3);
-    // u32 addr2 = MemoryManager::instance().allocBlock(5);
-    // u32 addr3 = MemoryManager::instance().allocBlock(1);
-    // u32 addr4 = MemoryManager::instance().allocBlock(2);
-    // MemoryManager::instance().printBuddyVisualization();
-    // MemoryManager::instance().printAllocationTable();
 
-    // Log::debug("Allocated blocks: %x, %x, %x, %x", addr1, addr2, addr3, addr4);
-
-    MemoryManager::instance().mapPage(5 * 1024 * 1024, 0xC0000000 + 5 * 1024 * 1024);
-    // MemoryManager::instance().mapPage(5 * 1024 * 1024 + 1024, 0xC0000000 + 5 * 1024 * 1024 + 1024);
-    // MemoryManager::instance().allocatePage(MemoryManager::instance().getPageForAddress(0xCCCA0000, true, true, false));
     Log::debug("[Stage 1] Initialized\n");
 }
 
 void stage2(u32 addr) {
     Log::debug("[Stage 2] Initializing");
 
-    multiboot_tag* tag = (struct multiboot_tag*)(addr + 8);
-    
+    multiboot_tag* tag = (struct multiboot_tag*) (addr + 8);
+
     while (tag->type != MULTIBOOT_TAG_TYPE_END) {
         switch (tag->type) {
             case MULTIBOOT_TAG_TYPE_CMDLINE: {
-                struct multiboot_tag_string* cmdline = (struct multiboot_tag_string*)tag;
+                struct multiboot_tag_string* cmdline = (struct multiboot_tag_string*) tag;
                 Log::debug("[MBI] Command line = %s", cmdline->string);
                 break;
             }
             case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME: {
-                struct multiboot_tag_string* bootloader = (struct multiboot_tag_string*)tag;
+                struct multiboot_tag_string* bootloader = (struct multiboot_tag_string*) tag;
                 Log::debug("[MBI] Boot loader name = %s", bootloader->string);
                 break;
             }
             case MULTIBOOT_TAG_TYPE_MODULE: {
-                struct multiboot_tag_module* module = (struct multiboot_tag_module*)tag;
-                Log::debug("[MBI] Module at %x-%x. Command line %s",
-                        module->mod_start,
-                        module->mod_end,
-                        module->cmdline);
+                struct multiboot_tag_module* module = (struct multiboot_tag_module*) tag;
+                Log::debug("[MBI] Module at %x-%x. Command line %s", module->mod_start, module->mod_end, module->cmdline);
                 break;
             }
             case MULTIBOOT_TAG_TYPE_BOOTDEV: {
-                struct multiboot_tag_bootdev* bootdev = (struct multiboot_tag_bootdev*)tag;
-                Log::debug("[MBI] Boot device %x,%u,%u",
-                        bootdev->biosdev,
-                        bootdev->slice,
-                        bootdev->part);
+                struct multiboot_tag_bootdev* bootdev = (struct multiboot_tag_bootdev*) tag;
+                Log::debug("[MBI] Boot device %x,%u,%u", bootdev->biosdev, bootdev->slice, bootdev->part);
                 break;
             }
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER: {
-                struct multiboot_tag_framebuffer* tagfb = (struct multiboot_tag_framebuffer*)tag;
+                struct multiboot_tag_framebuffer* tagfb = (struct multiboot_tag_framebuffer*) tag;
                 Log::debug("[Framebuffer] info:");
-                Log::debug("Address: %x", (u32)tagfb->common.framebuffer_addr);
+                Log::debug("Address: %x", (u32) tagfb->common.framebuffer_addr);
                 Log::debug("Width: %x", tagfb->common.framebuffer_width);
                 Log::debug("Height: %x", tagfb->common.framebuffer_height);
                 Log::debug("Pitch: %x", tagfb->common.framebuffer_pitch);
@@ -98,27 +81,33 @@ void stage2(u32 addr) {
                     Log::debug("Not 32-bit color");
                     break;
                 }
-                
-                // Framebuffer is inaccessible until we manually map it to the higher half using MemoryManager
-                // Framebuffer::instance().init((u32*) (tagfb->common.framebuffer_addr), tagfb->common.framebuffer_width,
-                                            //  tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
-                                            //  tagfb->common.framebuffer_bpp);
 
-                // Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
-                // FramebufferConsole::instance().init();
+                u32 size = tagfb->common.framebuffer_width * tagfb->common.framebuffer_height * 4;
 
-                // for (int i = 0; i < PAPIEZ_WIDTH; i++) {
-                //     for (int j = 0; j < PAPIEZ_HEIGHT; j++) {
-                //         Framebuffer::instance().putPixel(i + 150, j + 150, PAPIEZ[j * PAPIEZ_WIDTH + i]);
-                //     }
-                // }
+                for (u32 i = 0, physicalAddress = tagfb->common.framebuffer_addr, virtualAddress = 0xC0500000; i < size / PAGE_SIZE;
+                     i++, physicalAddress += PAGE_SIZE, virtualAddress += PAGE_SIZE) {
+
+                    MemoryManager::instance().mapPage(physicalAddress, virtualAddress);
+                }
+
+                Framebuffer::instance().init((u32*) (0xC0500000), tagfb->common.framebuffer_width,
+                                             tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
+                                             tagfb->common.framebuffer_bpp);
+
+                Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
+                FramebufferConsole::instance().init();
+
+                for (int i = 0; i < PAPIEZ_WIDTH; i++) {
+                    for (int j = 0; j < PAPIEZ_HEIGHT; j++) {
+                        Framebuffer::instance().putPixel(i + 150, j + 150, PAPIEZ[j * PAPIEZ_WIDTH + i]);
+                    }
+                }
 
                 break;
             }
         }
 
-        // Move to next tag, ensuring 8-byte alignment
-        tag = (struct multiboot_tag*)((multiboot_uint8_t*)tag + ((tag->size + 7) & ~7));
+        tag = (struct multiboot_tag*) ((multiboot_uint8_t*) tag + ((tag->size + 7) & ~7));
     }
 
     Log::debug("[Stage 2] Initialized");
@@ -148,7 +137,7 @@ extern "C" [[noreturn]] void kmain(unsigned long magic, unsigned long addr) {
     Log::debug("[Stage 0] Initialized\n");
 
     stage1(addr + 0xC0000000);
-    // stage2(addr + 0xC0000000);
+    stage2(addr + 0xC0000000);
 
     Log::debug("Kernel initialized");
 

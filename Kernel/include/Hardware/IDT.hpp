@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Lib/Types.hpp"
 #include "Hardware/Port.hpp"
+#include "Lib/Types.hpp"
 
 struct Registers {
     u32 gs, fs, es, ds;
@@ -73,28 +73,27 @@ extern "C" void irq14();
 extern "C" void irq15();
 
 class InterruptManager {
-    public:
-        static InterruptManager& instance() {
-            static InterruptManager instance;
-            return instance;
-        }
+public:
+    static InterruptManager& instance() {
+        static InterruptManager instance;
+        return instance;
+    }
 
+    void init();
+    void handleInterrupt(Registers registers);
+    void enable();
+    void disable();
 
+private:
+    InterruptManager();
 
-        void init();
-        void handleInterrupt(Registers registers);
-        void enable();
-        void disable();
-    private:
-        InterruptManager();
+    static __attribute__((aligned(0x10))) IDTEntry entries[256];
+    static IDTPointer ptr;
 
-        static __attribute__((aligned(0x10))) IDTEntry entries[256];
-        static IDTPointer ptr;
+    Port8Bit masterCommandPort;
+    Port8Bit masterDataPort;
+    Port8Bit slaveCommandPort;
+    Port8Bit slaveDataPort;
 
-        Port8Bit masterCommandPort;
-        Port8Bit masterDataPort;
-        Port8Bit slaveCommandPort;
-        Port8Bit slaveDataPort;
-
-        void setEntry(u8 i, u32 base, u16 selector, u8 flags);
+    void setEntry(u8 i, u32 base, u16 selector, u8 flags);
 };

@@ -6,48 +6,70 @@
 
 #define PAGE_SIZE 4096
 
-#define PAGE_DIRECTORY_INDEX(x) ((((u32) x) >> 22) & 0x3ff)
-#define PAGE_TABLE_INDEX(x) ((((u32) x) >> 12) & 0x3ff)
-#define PAGE_GET_PHYSICAL_ADDRESS(x) ((*x) & ~0xFFF)
+static inline u32 PAGE_DIRECTORY_INDEX(u32 x) {
+    return ((x >> 22) & 0x3ff);
+}
 
-#define GET_FRAME_ADDRESS(x) ((x & 0xFFFFF000) >> 12)
+static inline u32 PAGE_TABLE_INDEX(u32 x) {
+    return ((x >> 12) & 0x3ff);
+}
 
-#define phys2virt(x) ((u32) x + 0xC0000000)
-#define virt2phys(x) ((u32) x - 0xC0000000)
+static inline u32 PAGE_GET_PHYSICAL_ADDRESS(u32* x) {
+    return (*x & ~0xFFF);
+}
 
-// #define KERNEL_HEAP_START (0xC0000000 + 4 * 1024 * 1024)
-// #define KERNEL_HEAP_SIZE 16 * 1024
+static inline u32 GET_FRAME_ADDRESS(u32 x) {
+    return ((x & 0xFFFFF000) >> 12);
+}
+
+template<typename T>
+static inline T* PHYS_TO_VIRT(T* x) {
+    return reinterpret_cast<T*>(reinterpret_cast<u32>(x) + 0xC0000000);
+}
+
+static inline u32 PHYS_TO_VIRT(u32 x) {
+    return (x + 0xC0000000);
+}
+
+template<typename T>
+static inline T* VIRT_2_PHYS(T* x) {
+    return reinterpret_cast<T*>(reinterpret_cast<u32>(x) - 0xC0000000);
+}
+
+static inline u32 VIRT_2_PHYS(u32 x) {
+    return (x - 0xC0000000);
+}
 
 static inline void invlpg(void* addr) {
     asm volatile("invlpg (%0)" ::"r"(addr) : "memory");
 }
 
 struct PageDirectoryEntry {
-    u32 present : 1;     
-    u32 readWrite : 1;   
-    u32 isUser : 1;       
-    u32 writeThrough : 1; 
-    u32 canCache : 1;     
-    u32 accessed : 1;     
-    u32 reserved : 1;     
-    u32 pageSize : 1;     
+    u32 present : 1;
+    u32 readWrite : 1;
+    u32 isUser : 1;
+    u32 writeThrough : 1;
+    u32 canCache : 1;
+    u32 accessed : 1;
+    u32 reserved : 1;
+    u32 pageSize : 1;
     u32 ignored : 1;
-    u32 unused : 3; 
-    u32 frame : 20; 
+    u32 unused : 3;
+    u32 frame : 20;
 } __attribute__((packed));
 
 struct PageTableEntry {
-    u32 present : 1;      
-    u32 readWrite : 1;    
-    u32 isUser : 1;       
-    u32 writeThrough : 1; 
-    u32 canCache : 1;     
-    u32 accessed : 1;     
-    u32 dirty : 1;        
+    u32 present : 1;
+    u32 readWrite : 1;
+    u32 isUser : 1;
+    u32 writeThrough : 1;
+    u32 canCache : 1;
+    u32 accessed : 1;
+    u32 dirty : 1;
     u32 reserved : 1;
-    u32 global : 1; 
-    u32 unused : 3; 
-    u32 frame : 20; 
+    u32 global : 1;
+    u32 unused : 3;
+    u32 frame : 20;
 } __attribute__((packed));
 
 struct PageTable {
@@ -69,7 +91,6 @@ public:
 
     void init(u32 addr);
     u32 allocBlock(u32 count);
-    void printAllocationTable();
     void printBuddyVisualization();
     void mapPage(u32 phys, u32 virt);
 
@@ -87,7 +108,6 @@ private:
     void initPMM(u32 addr);
     void initVMM();
 
-    // Buddy allocator
     u8 bitmapAddress[NUM_LEVELS][MAX_BITMAP_SIZE];
     Bitmap bitmaps[NUM_LEVELS];
 

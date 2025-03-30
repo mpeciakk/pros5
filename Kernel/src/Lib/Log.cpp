@@ -1,86 +1,29 @@
 #include "Lib/Log.hpp"
 #include "Drivers/Framebuffer.hpp"
 #include "Hardware/Port.hpp"
+#include "Lib/String.hpp"
 #include <stdarg.h>
 
-void print(char ch) {
+void Log::print(char ch) {
     FramebufferConsole::instance().putChar(ch);
 }
 
-void kprint(char ch) {
+void Log::prints(const char* str) {
+    FramebufferConsole::instance().print(str);
+}
+
+void Log::kprint(char ch) {
     static Port8Bit port(0x3F8);
     port.write(ch);
 }
 
-int itoa(int value, char* str, int base) {
-    if (value == 0) {
-        str[0] = '0';
-        str[1] = '\0';
-        return 1;
+void Log::kprints(const char* str) {
+    for (u32 i = 0; str[i] != '\0'; i++) {
+        kprint(str[i]);
     }
-
-    int negative = 0;
-    if (value < 0 && base == 10) {
-        negative = 1;
-        value = -value;
-    }
-
-    int i = 0;
-    while (value != 0) {
-        int remainder = value % base;
-        str[i++] = (remainder < 10) ? remainder + '0' : remainder - 10 + 'a';
-        value /= base;
-    }
-
-    if (negative) {
-        str[i++] = '-';
-    }
-
-    int start = 0;
-    int end = i - 1;
-    while (start < end) {
-        char temp = str[start];
-        str[start] = str[end];
-        str[end] = temp;
-        start++;
-        end--;
-    }
-
-    str[i] = '\0';
-
-    return i;
 }
 
-int utoa(unsigned int value, char* str, int base) {
-    if (value == 0) {
-        str[0] = '0';
-        str[1] = '\0';
-        return 1;
-    }
-
-    int i = 0;
-    while (value != 0) {
-        int remainder = value % base;
-        str[i++] = (remainder < 10) ? remainder + '0' : remainder - 10 + 'a';
-        value /= base;
-    }
-
-    int start = 0;
-    int end = i - 1;
-    while (start < end) {
-        char temp = str[start];
-        str[start] = str[end];
-        str[end] = temp;
-        start++;
-        end--;
-    }
-
-    str[i] = '\0';
-
-    return i;
-}
-
-void printf(const char* __restrict format, va_list parameters, bool serial = false) {
+void Log::printf(const char* __restrict format, va_list parameters, bool serial) {
     auto printFunction = serial ? kprint : print;
 
     while (*format != '\0') {
@@ -113,7 +56,7 @@ void printf(const char* __restrict format, va_list parameters, bool serial = fal
             format++;
             int num = va_arg(parameters, int);
             char buffer[32];
-            int i = itoa(num, buffer, 10);
+            int i = itos(num, buffer, 10);
             for (int j = 0; j < i; j++) {
                 printFunction(buffer[j]);
             }
@@ -121,7 +64,7 @@ void printf(const char* __restrict format, va_list parameters, bool serial = fal
             format++;
             unsigned int num = va_arg(parameters, unsigned int);
             char buffer[32];
-            int i = utoa(num, buffer, 10);
+            int i = utos(num, buffer, 10);
             for (int j = 0; j < i; j++) {
                 printFunction(buffer[j]);
             }
@@ -129,7 +72,7 @@ void printf(const char* __restrict format, va_list parameters, bool serial = fal
             format++;
             int num = va_arg(parameters, int);
             char buffer[32];
-            int i = utoa(num, buffer, 16);
+            int i = utos(num, buffer, 16);
             printFunction('0');
             printFunction('x');
             for (int j = 0; j < i; j++) {
@@ -212,17 +155,17 @@ void [[noreturn]] panic(const char* __restrict format, ...) {
     va_list parameters;
     va_start(parameters, format);
 
-    printf("--------------------------------\n", parameters);
-    printf("KERNEL BRUH MOMENT\n", parameters);
-    printf(format, parameters);
-    printf("\n", parameters);
-    printf("--------------------------------\n", parameters);
+    Log::printf("--------------------------------\n", parameters);
+    Log::printf("KERNEL BRUH MOMENT\n", parameters);
+    Log::printf(format, parameters);
+    Log::printf("\n", parameters);
+    Log::printf("--------------------------------\n", parameters);
 
-    printf("--------------------------------\n", parameters, true);
-    printf("KERNEL BRUH MOMENT\n", parameters, true);
-    printf(format, parameters, true);
-    printf("\n", parameters, true);
-    printf("--------------------------------\n", parameters, true);
+    Log::printf("--------------------------------\n", parameters, true);
+    Log::printf("KERNEL BRUH MOMENT\n", parameters, true);
+    Log::printf(format, parameters, true);
+    Log::printf("\n", parameters, true);
+    Log::printf("--------------------------------\n", parameters, true);
 
     va_end(parameters);
 

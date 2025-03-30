@@ -1,6 +1,6 @@
 #include "Hardware/IDT.hpp"
-#include "Lib/Log.hpp"
 #include "Hardware/Port.hpp"
+#include "Lib/Log.hpp"
 
 IDTEntry InterruptManager::entries[256];
 IDTPointer InterruptManager::ptr;
@@ -17,16 +17,14 @@ extern "C" void handleInterrupt(Registers* regs) {
     }
 
     if (regs->interrupt < 0x20) {
-        panic("CPU Exception %d\nEAX: %x, EBX: %x, ECX: %x, EDX: %x\nESP: %x, EBP: %x, ESI: %x, EDI: %x\nEIP: %x, CS: %x, DS: %x, SS: %x\nERROR CODE: %x",
-              regs->interrupt,
-              regs->eax, regs->ebx, regs->ecx, regs->edx,
-              regs->esp, regs->ebp, regs->esi, regs->edi,
-              regs->eip, regs->cs, regs->ds, regs->ss,
-              regs->error);
+        panic("CPU Exception %d\nEAX: %x, EBX: %x, ECX: %x, EDX: %x\nESP: %x, EBP: %x, ESI: %x, EDI: %x\nEIP: %x, CS: %x, DS: %x, SS: "
+              "%x\nERROR CODE: %x",
+              regs->interrupt, regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esp, regs->ebp, regs->esi, regs->edi, regs->eip,
+              regs->cs, regs->ds, regs->ss, regs->error);
     }
 
     outb(0x20, 0x20);
-    
+
     if (regs->interrupt >= 40) {
         outb(0xA0, 0x20);
     }
