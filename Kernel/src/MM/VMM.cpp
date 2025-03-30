@@ -28,7 +28,11 @@ void MemoryManager::initVMM() {
     entry->readWrite = true;
     entry->frame = GET_FRAME_ADDRESS((u32) VIRT_2_PHYS(table));
 
-    currentPageDirectory = (PageDirectory*) VIRT_2_PHYS(dir);
+    switchPageDirectory(dir);
+}
+
+void MemoryManager::switchPageDirectory(PageDirectory* dir) {
+    currentPageDirectory = VIRT_2_PHYS(dir);
     asm("mov %0, %%cr3" : : "r"(VIRT_2_PHYS(dir)));
     asm("invlpg 0");
 }

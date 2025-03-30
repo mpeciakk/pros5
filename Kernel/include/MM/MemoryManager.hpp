@@ -94,6 +94,8 @@ public:
     void printBuddyVisualization();
     void mapPage(u32 phys, u32 virt);
 
+    void switchPageDirectory(PageDirectory* dir);
+
 private:
     static constexpr u32 MIN_BLOCK_SIZE = 4096;
     static constexpr u32 NUM_LEVELS = 5;
