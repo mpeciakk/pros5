@@ -75,3 +75,48 @@ int utos(u32 value, char* str, u32 base) {
 
     return i;
 }
+
+int strcmp(const char* str1, const char* str2) {
+    while (*str1 && (*str1 == *str2)) {
+        str1++;
+        str2++;
+    }
+    return *(const unsigned char*)str1 - *(const unsigned char*)str2;
+}
+
+int strncmp(const char* str1, const char* str2, u32 n) {
+    while (n > 0 && *str1 && (*str1 == *str2)) {
+        str1++;
+        str2++;
+        n--;
+    }
+
+    return n == 0 ? 0 : *(const unsigned char*)str1 - *(const unsigned char*)str2;
+}
+
+int strlen(const char* str) {
+    int len = 0;
+    while (*str++) {
+        len++;
+    }
+    return len;
+}
+
+void strcpy(char* dest, const char* src) {
+    while ((*dest++ = *src++) != '\0');
+}
+
+void strncpy(char* dest, const char* src, u32 n) {
+    while (n > 0 && (*dest++ = *src++) != '\0') {
+        n--;
+    }
+}
+
+void memcpy(void* dest, const void* src, u32 size) {
+    u8* d = (u8*) dest;
+    const u8* s = (const u8*) src;
+
+    for (u32 i = 0; i < size; i++) {
+        d[i] = s[i];
+    }
+}

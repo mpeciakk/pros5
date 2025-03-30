@@ -1,7 +1,12 @@
+#include "Drivers/ATA.hpp"
 #include "Drivers/Framebuffer.hpp"
+#include "FS/DevFS.hpp"
+#include "FS/PartitionTable.hpp"
+#include "FS/VFS.hpp"
 #include "Hardware/GDT.hpp"
 #include "Hardware/IDT.hpp"
 #include "Lib/Log.hpp"
+#include "MM/KernelHeap.hpp"
 #include "MM/MemoryManager.hpp"
 #include "Multiboot/multiboot.h"
 #include "Papiez.hpp"
@@ -19,6 +24,15 @@ void stage1(u32 addr) {
 
     MemoryManager::instance().init(addr);
     Log::debug("[MM] initialized");
+
+    u32 physicalAddress = MemoryManager::instance().allocBlock(1);
+    for (u32 virtualAddress = KERNEL_HEAP_START; virtualAddress < KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
+         physicalAddress = MemoryManager::instance().allocBlock(1), virtualAddress += PAGE_SIZE) {
+        MemoryManager::instance().mapPage(physicalAddress, virtualAddress);
+    }
+
+    KernelHeap::instance();
+    Log::debug("[KernelHeap] initialized");
 
     Log::debug("[Stage 1] Initialized\n");
 }
@@ -90,9 +104,8 @@ void stage2(u32 addr) {
                     MemoryManager::instance().mapPage(physicalAddress, virtualAddress);
                 }
 
-                Framebuffer::instance().init((u32*) (0xC0500000), tagfb->common.framebuffer_width,
-                                             tagfb->common.framebuffer_height, tagfb->common.framebuffer_pitch,
-                                             tagfb->common.framebuffer_bpp);
+                Framebuffer::instance().init((u32*) (0xC0500000), tagfb->common.framebuffer_width, tagfb->common.framebuffer_height,
+                                             tagfb->common.framebuffer_pitch, tagfb->common.framebuffer_bpp);
 
                 Framebuffer::instance().clear(Framebuffer::instance().rgb(0, 0, 32));
                 FramebufferConsole::instance().init();
@@ -109,6 +122,48 @@ void stage2(u32 addr) {
 
         tag = (struct multiboot_tag*) ((multiboot_uint8_t*) tag + ((tag->size + 7) & ~7));
     }
+
+    ATA ata0m(0x1F0, true);
+    ATA ata0s(0x1F0, false);
+    ata0m.identify();
+    ata0s.identify();
+
+    DevFS devfs;
+    if (!VFSManager::instance().mount("/dev", &devfs)) {
+        Log::error("Failed to mount /dev");
+    }
+
+    if (!devfs.registerDevice("ata0m", FileType::BlockDevice, &ata0m)) {
+        Log::error("Failed to register ata0m");
+    }
+    if (!devfs.registerDevice("ata0s", FileType::BlockDevice, &ata0s)) {
+        Log::error("Failed to register ata0s");
+    }
+
+    auto fd = VFSManager::instance().open("/dev/ata0s", 0);
+    if (!fd) {
+        Log::error("Failed to open /dev/ata0s");
+    }
+
+    MasterBootRecord mbr;
+    u32 size = VFSManager::instance().read(fd, &mbr, sizeof(MasterBootRecord));
+
+    if (mbr.magicNumber != 0xAA55) {
+        Log::error("MBR Error");
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        if (mbr.primaryPartition[i].type == 0x00) {
+            continue;
+        }
+
+        bool bootable = mbr.primaryPartition[i].bootable == 0x80;
+
+        Log::log("Partition %d %s, type: %x", i, bootable ? "bootable" : "not bootable",
+            mbr.primaryPartition[i].type);
+    }
+
+    VFSManager::instance().close(fd);
 
     Log::debug("[Stage 2] Initialized");
 }
